@@ -1,0 +1,7 @@
+{
+  "name": "ContractorBook",
+  "description": "A mobile-first bookkeeping app for contractors to scan receipts, extract expense data using AI, and assign them to active job sites.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
