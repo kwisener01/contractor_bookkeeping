@@ -56,5 +56,6 @@ export interface Job {
   phone: string;
   email: string;
   status: 'active' | 'completed' | 'pending';
+  budget: number; // New: tracking project budget
   isSynced?: boolean;
 }

@@ -29,6 +29,7 @@ export const syncToGoogleSheet = async (webhookUrl: string, data: any, metadata?
         phone: data.phone || '',
         email: data.email || '',
         status: data.status,
+        budget: data.budget || 0, // FIXED: Added budget to sync payload
         syncTimestamp: new Date().toISOString()
       };
     } else {
@@ -112,8 +113,9 @@ export const fetchFromCloud = async (webhookUrl: string): Promise<{ jobs: Job[],
       address: j.address,
       contactName: j.contactName,
       phone: j.phone,
-      email: j.email,
+      email: j.email, // FIXED: Ensure email is captured from cloud
       status: j.status,
+      budget: parseFloat(j.budget) || 0, // FIXED: Ensure budget is captured from cloud
       isSynced: true
     }));
 

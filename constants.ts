@@ -10,7 +10,8 @@ export const INITIAL_JOBS: Job[] = [
     contactName: 'John Smith',
     phone: '555-0101',
     email: 'john@example.com',
-    status: 'active'
+    status: 'active',
+    budget: 5000
   },
   {
     id: 'job-2',
@@ -20,7 +21,8 @@ export const INITIAL_JOBS: Job[] = [
     contactName: 'Alice Johnson',
     phone: '555-0102',
     email: 'alice@example.com',
-    status: 'active'
+    status: 'active',
+    budget: 15000
   }
 ];
 

@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
-import { Plus, Briefcase, MapPin, Phone, Mail, User, X, Trash2, AlertTriangle, Edit2, Cloud, UserCircle2, ChevronDown, ArrowUpRight } from 'lucide-react';
-import { Job, UserRole } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Plus, Briefcase, MapPin, Phone, Mail, User, X, Trash2, AlertTriangle, Edit2, Cloud, UserCircle2, ChevronDown, ArrowUpRight, DollarSign, Target } from 'lucide-react';
+import { Job, UserRole, ExpenseRecord } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 interface JobManagerProps {
   jobs: Job[];
+  expenses: ExpenseRecord[];
   onAddJob: (job: Job) => Promise<void>;
   onUpdateJob: (job: Job) => Promise<void>;
   onDeleteJob: (id: string) => void;
@@ -16,6 +17,7 @@ interface JobManagerProps {
 
 export const JobManager: React.FC<JobManagerProps> = ({ 
   jobs, 
+  expenses,
   onAddJob, 
   onUpdateJob, 
   onDeleteJob, 
@@ -34,14 +36,31 @@ export const JobManager: React.FC<JobManagerProps> = ({
     contactName: '',
     phone: '',
     email: '',
-    status: 'active'
+    status: 'active',
+    budget: 0
   });
 
   const isAdmin = userRole === UserRole.ADMIN;
   const unsyncedCount = jobs.filter(j => !j.isSynced).length;
 
+  const jobSpending = useMemo(() => {
+    const map: Record<string, number> = {};
+    expenses.forEach(exp => {
+      const hasSplitItems = exp.items.some(item => item.jobId && item.jobId !== exp.jobId);
+      if (hasSplitItems) {
+        exp.items.forEach(item => {
+          const targetJobId = item.jobId || exp.jobId;
+          map[targetJobId] = (map[targetJobId] || 0) + (item.amount || 0);
+        });
+      } else {
+        map[exp.jobId] = (map[exp.jobId] || 0) + exp.totalAmount;
+      }
+    });
+    return map;
+  }, [expenses]);
+
   const resetForm = () => {
-    setFormData({ name: '', client: '', address: '', contactName: '', phone: '', email: '', status: 'active' });
+    setFormData({ name: '', client: '', address: '', contactName: '', phone: '', email: '', status: 'active', budget: 0 });
     setIsAdding(false);
     setJobToEdit(null);
   };
@@ -72,6 +91,7 @@ export const JobManager: React.FC<JobManagerProps> = ({
         phone: formData.phone || '',
         email: formData.email || '',
         status: (formData.status as any) || 'active',
+        budget: Number(formData.budget) || 0,
         id: `job-${Math.random().toString(36).substr(2, 9)}`,
         isSynced: false
       };
@@ -90,90 +110,91 @@ export const JobManager: React.FC<JobManagerProps> = ({
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Project Sites</h1>
         <div className="flex items-center gap-2">
           {isAdmin && isCloudConnected && unsyncedCount > 0 && (
-            <button 
-              onClick={() => onSyncAll?.()}
-              className="bg-green-50 text-green-600 px-3 py-2.5 rounded-2xl border border-green-100 flex items-center gap-2"
-            >
-              <Cloud size={16} />
-              <span className="text-xs font-black uppercase tracking-tight">Sync</span>
+            <button onClick={() => onSyncAll?.()} className="bg-green-50 text-green-600 px-3 py-2.5 rounded-2xl border border-green-100 flex items-center gap-2">
+              <Cloud size={16} /><span className="text-xs font-black uppercase tracking-tight">Sync</span>
             </button>
           )}
           {isAdmin && (
-            <button 
-              onClick={() => { resetForm(); setIsAdding(true); }}
-              className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg flex items-center gap-2"
-            >
-              <Plus size={20} />
-              <span className="text-xs font-bold pr-1">New Site</span>
+            <button onClick={() => { resetForm(); setIsAdding(true); }} className="bg-blue-600 text-white p-2.5 rounded-2xl shadow-lg flex items-center gap-2">
+              <Plus size={20} /><span className="text-xs font-bold pr-1">New Site</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {jobs.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200 px-6">
             <Briefcase size={48} className="mx-auto text-slate-200 mb-4" />
             <p className="text-slate-400 font-medium">No project sites assigned.</p>
           </div>
         ) : (
-          jobs.map(job => (
-            <div 
-              key={job.id} 
-              onClick={() => navigateToJobExpenses(job.id)}
-              className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative group active:scale-[0.98] transition-all cursor-pointer hover:border-blue-200"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-black text-lg text-slate-800 truncate">{job.name}</h3>
-                    {isAdmin && job.isSynced && <Cloud size={14} className="text-green-500 shrink-0" />}
+          jobs.map(job => {
+            const spent = jobSpending[job.id] || 0;
+            const progress = job.budget > 0 ? Math.min((spent / job.budget) * 100, 100) : 0;
+            const isOverBudget = spent > job.budget && job.budget > 0;
+
+            return (
+              <div key={job.id} onClick={() => navigateToJobExpenses(job.id)} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 relative group active:scale-[0.98] transition-all cursor-pointer hover:border-blue-200">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-black text-lg text-slate-800 truncate">{job.name}</h3>
+                      {isAdmin && job.isSynced && <Cloud size={14} className="text-green-500 shrink-0" />}
+                    </div>
+                    <p className="text-blue-600 text-xs font-bold uppercase tracking-wide">{job.client}</p>
                   </div>
-                  <p className="text-blue-600 text-xs font-bold uppercase tracking-wide">{job.client}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                    job.status === 'active' ? 'bg-green-100 text-green-700' : 
-                    job.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
-                    'bg-slate-100 text-slate-600'
+                    job.status === 'active' ? 'bg-green-100 text-green-700' : job.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {job.status}
                   </span>
-                  <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowUpRight size={16} />
-                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 text-slate-500 text-xs">
-                  <MapPin size={14} className="shrink-0 mt-0.5" />
-                  <span className="leading-tight">{job.address || 'No address provided'}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-slate-50">
-                  <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
-                    <UserCircle2 size={12} className="text-slate-400" />
-                    <span className="truncate">{job.contactName || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
-                    <Phone size={12} className="text-slate-400" />
-                    <span>{job.phone || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium sm:col-span-2">
-                    <Mail size={12} className="text-slate-400" />
-                    <span className="truncate">{job.email || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
 
-              {isAdmin && (
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <button onClick={(e) => handleEdit(e, job)} className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl"><Edit2 size={14} /></button>
-                  <button onClick={(e) => handleDeleteRequest(e, job)} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl"><Trash2 size={14} /></button>
+                <div className="mb-6">
+                   <div className="flex justify-between items-end mb-2">
+                      <div className="flex items-center gap-1">
+                         <DollarSign size={12} className="text-slate-400" />
+                         <span className="text-xl font-black text-slate-800">${spent.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                         <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">Spent</span>
+                      </div>
+                      <div className="text-right">
+                         <span className={`text-[10px] font-black uppercase tracking-widest ${isOverBudget ? 'text-red-500' : 'text-slate-400'}`}>
+                           {job.budget > 0 ? `Budget: $${job.budget.toLocaleString()}` : 'No Budget Set'}
+                         </span>
+                      </div>
+                   </div>
+                   <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                      <div className={`h-full transition-all duration-1000 ease-out rounded-full ${isOverBudget ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${progress}%` }}></div>
+                   </div>
                 </div>
-              )}
-            </div>
-          ))
+                
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 text-slate-500 text-xs">
+                    <MapPin size={14} className="shrink-0 mt-0.5" />
+                    <span className="leading-tight">{job.address || 'No address provided'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-slate-50">
+                    <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
+                      <UserCircle2 size={12} className="text-slate-400" />
+                      <span className="truncate">{job.contactName || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
+                      <Phone size={12} className="text-slate-400" />
+                      <span>{job.phone || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {isAdmin && (
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <button onClick={(e) => handleEdit(e, job)} className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl"><Edit2 size={14} /></button>
+                    <button onClick={(e) => handleDeleteRequest(e, job)} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl"><Trash2 size={14} /></button>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -184,15 +205,29 @@ export const JobManager: React.FC<JobManagerProps> = ({
               <h2 className="text-xl font-black text-slate-800">{jobToEdit ? 'Edit Project Site' : 'New Project Site'}</h2>
               <button onClick={resetForm} className="p-2 bg-slate-100 rounded-full text-slate-400"><X size={20} /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto no-scrollbar">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto no-scrollbar pb-10">
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Project Name</label>
                     <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Living Room Remodel" />
                   </div>
                   <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Project Budget ($)</label>
+                    <div className="relative">
+                       <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                       <input required type="number" className="w-full bg-blue-50 border border-blue-100 rounded-2xl pl-12 pr-5 py-4 outline-none font-black text-blue-700" value={formData.budget} onChange={e => setFormData({...formData, budget: Number(e.target.value)})} placeholder="5000" />
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Client Name</label>
                     <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold" value={formData.client} onChange={e => setFormData({...formData, client: e.target.value})} placeholder="e.g. John Doe" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Client Email</label>
+                    <div className="relative">
+                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                       <input type="email" className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 outline-none font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="client@example.com" />
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Site Address</label>
@@ -207,17 +242,9 @@ export const JobManager: React.FC<JobManagerProps> = ({
                     <input type="tel" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="555-0000" />
                   </div>
                   <div className="sm:col-span-1">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</label>
-                    <input type="email" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="contact@email.com" />
-                  </div>
-                  <div className="sm:col-span-1">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Project Status</label>
                     <div className="relative">
-                      <select 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold appearance-none" 
-                        value={formData.status} 
-                        onChange={e => setFormData({...formData, status: e.target.value as any})}
-                      >
+                      <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold appearance-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
                         <option value="active">Active</option>
                         <option value="completed">Completed</option>
                         <option value="pending">Pending</option>
@@ -236,7 +263,7 @@ export const JobManager: React.FC<JobManagerProps> = ({
 
       {isAdmin && jobToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center">
+          <div className="bg-white w-full max-sm rounded-[2.5rem] p-8 text-center">
             <AlertTriangle size={32} className="mx-auto text-red-500 mb-6" />
             <h3 className="text-xl font-black text-slate-800 mb-2">Delete Project?</h3>
             <p className="text-sm text-slate-500 font-medium">This will remove "{jobToDelete.name}" permanently.</p>

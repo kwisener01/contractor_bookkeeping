@@ -36,7 +36,8 @@ export const Settings: React.FC<SettingsProps> = ({
         result.jobs.push({
           id: data[i][0], name: data[i][1], client: data[i][2], 
           address: data[i][3], contactName: data[i][4], 
-          phone: data[i][5], email: data[i][6], status: data[i][7]
+          phone: data[i][5], email: data[i][6], status: data[i][7],
+          budget: parseFloat(data[i][8]) || 0
         });
       }
     }
@@ -77,14 +78,14 @@ function doPost(e) {
     if (data.type === 'job') {
       var sheet = ss.getSheetByName("Jobs") || ss.insertSheet("Jobs");
       if (sheet.getLastRow() == 0) {
-        sheet.appendRow(["ID", "Name", "Client", "Address", "Contact", "Phone", "Email", "Status", "Updated"]);
+        sheet.appendRow(["ID", "Name", "Client", "Address", "Contact", "Phone", "Email", "Status", "Budget", "Updated"]);
         sheet.setFrozenRows(1);
       }
       var rows = sheet.getDataRange().getValues();
       var foundIdx = -1;
       for (var i = 1; i < rows.length; i++) if (rows[i][0].toString() == data.id.toString()) { foundIdx = i+1; break; }
-      var val = [data.id, data.name, data.client, data.address, data.contactName, data.phone, data.email, data.status, new Date()];
-      if (foundIdx > 0) sheet.getRange(foundIdx, 1, 1, 9).setValues([val]); else sheet.appendRow(val);
+      var val = [data.id, data.name, data.client, data.address, data.contactName, data.phone, data.email, data.status, data.budget, new Date()];
+      if (foundIdx > 0) sheet.getRange(foundIdx, 1, 1, 10).setValues([val]); else sheet.appendRow(val);
     }
 
     if (data.type === 'expense_batch') {
@@ -97,7 +98,6 @@ function doPost(e) {
       var rows = sheet.getDataRange().getValues();
       var receiptIdStr = data.receiptId.toString();
 
-      // STRICT DELETE: Matches the receipt ID part exactly to prevent accidental deletes of similar IDs
       for (var i = rows.length - 1; i >= 1; i--) {
         var entryId = rows[i][0].toString();
         if (entryId.split('_')[0] === receiptIdStr) {
@@ -136,9 +136,7 @@ function doPost(e) {
   return (
     <div className="flex flex-col h-full bg-slate-50 pb-24">
       <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between z-10">
-        <button onClick={() => navigate('/')} className="p-2 -ml-2 text-slate-600">
-          <ChevronLeft />
-        </button>
+        <button onClick={() => navigate('/')} className="p-2 -ml-2 text-slate-600"><ChevronLeft /></button>
         <h1 className="font-bold text-slate-800 tracking-tight text-lg">Cloud Settings</h1>
         <div className="w-8"></div>
       </div>
@@ -154,19 +152,11 @@ function doPost(e) {
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Two-Way Sync Connection</p>
             </div>
           </div>
-
           <div className="space-y-4">
-            <input 
-              type="url" value={url} onChange={(e) => setUrl(e.target.value)}
-              placeholder="Apps Script Web App URL..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm transition-all"
-            />
-            <button onClick={handleSave} className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">
-              Save & Start Sync
-            </button>
+            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Apps Script Web App URL..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm transition-all" />
+            <button onClick={handleSave} className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Save & Start Sync</button>
             <button onClick={handleTest} disabled={testStatus === 'testing'} className="w-full bg-white border border-slate-200 py-3 rounded-2xl text-xs font-bold text-slate-600 flex items-center justify-center gap-2">
-              {testStatus === 'testing' ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-              Test Connection
+              {testStatus === 'testing' ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}Test Connection
             </button>
           </div>
         </div>
@@ -174,16 +164,11 @@ function doPost(e) {
         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
           <h3 className="font-bold text-slate-800 mb-4">Update Apps Script</h3>
           <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-            The script has been updated to support <b>Split Project Billing</b>. 
-            Please replace your existing code and redeploy as 'Anyone'.
+            Updated template for <b>Budget Tracking</b> and <b>Client Email</b> support. Replace your existing code and redeploy as 'Anyone'.
           </p>
           <div className="relative">
-             <button onClick={handleCopy} className="absolute top-2 right-2 p-2 bg-white/80 rounded-lg shadow-sm border text-[10px] font-bold">
-               {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-             </button>
-             <pre className="bg-slate-900 text-slate-400 p-4 rounded-2xl overflow-x-auto text-[10px] font-mono max-h-[250px] no-scrollbar">
-              {scriptCode}
-             </pre>
+             <button onClick={handleCopy} className="absolute top-2 right-2 p-2 bg-white/80 rounded-lg shadow-sm border text-[10px] font-bold">{copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}</button>
+             <pre className="bg-slate-900 text-slate-400 p-4 rounded-2xl overflow-x-auto text-[10px] font-mono max-h-[250px] no-scrollbar">{scriptCode}</pre>
           </div>
         </div>
       </div>

@@ -29,13 +29,11 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Use REFs to prevent race conditions during async sync operations
   const expensesRef = useRef<ExpenseRecord[]>([]);
   const jobsRef = useRef<Job[]>([]);
   const syncLock = useRef(false);
   const pullLock = useRef(false);
 
-  // Load initial data
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('cb_user');
@@ -67,7 +65,6 @@ const AppContent: React.FC = () => {
     setIsAuthLoading(false);
   }, []);
 
-  // Update refs whenever state changes
   useEffect(() => { expensesRef.current = expenses; }, [expenses]);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
 
@@ -114,7 +111,6 @@ const AppContent: React.FC = () => {
     setIsBackgroundSyncing(true);
 
     try {
-      // CRITICAL: Read from REF to get the data added in the current session
       const currentExpenses = [...expensesRef.current];
       const currentJobs = [...jobsRef.current];
       
@@ -188,7 +184,6 @@ const AppContent: React.FC = () => {
   const saveExpense = async (record: ExpenseRecord, shouldSync: boolean = true) => {
     const updatedRecord = { ...record, isSynced: false };
 
-    // Update state AND force immediate LocalStorage write to prevent data loss
     setExpenses(prev => {
       const exists = prev.find(e => e.id === record.id);
       const updated = exists 
@@ -209,7 +204,6 @@ const AppContent: React.FC = () => {
     if (location.pathname.includes('scan')) navigate('/history');
     
     if (shouldSync && currentUser?.role === UserRole.ADMIN) {
-      // Small delay to ensure the setExpenses state transition has completed
       setTimeout(() => syncAllUnsynced(), 1000);
     }
   };
@@ -222,6 +216,38 @@ const AppContent: React.FC = () => {
       return updated;
     });
     setExpenseToDelete(null);
+  };
+
+  const handleExport = () => {
+    if (expenses.length === 0) {
+      alert("No expenses to export.");
+      return;
+    }
+
+    const headers = ["Date", "Merchant", "Project", "Category", "Amount", "Tax", "Items Count", "Notes"];
+    const rows = expenses.map(exp => {
+      const job = jobs.find(j => j.id === exp.jobId);
+      return [
+        exp.date || new Date(exp.timestamp).toLocaleDateString(),
+        `"${exp.merchantName.replace(/"/g, '""')}"`,
+        `"${(job?.name || 'Multi-Project').replace(/"/g, '""')}"`,
+        exp.category,
+        exp.totalAmount.toFixed(2),
+        exp.taxAmount.toFixed(2),
+        exp.items.length,
+        `"${(exp.notes || '').replace(/"/g, '""')}"`
+      ];
+    });
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ContractorBook_Expenses_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const filteredExpenses = useMemo(() => {
@@ -252,7 +278,7 @@ const AppContent: React.FC = () => {
 
       <Routes>
         <Route path="/login" element={<Login onLogin={(u) => { setCurrentUser(u); localStorage.setItem('cb_user', JSON.stringify(u)); navigate('/'); }} />} />
-        <Route path="/" element={<Dashboard expenses={expenses} jobs={jobs} onNewScan={() => navigate('/scan')} onViewHistory={() => navigate('/history')} onViewJobs={() => navigate('/jobs')} onExport={() => {}} onSettings={() => navigate('/settings')} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} onRefresh={pullFromCloud} isCloudConnected={!!googleSheetUrl && googleSheetUrl.includes('script.google.com/macros/s/')} pendingCount={pendingCount} user={currentUser!} />} />
+        <Route path="/" element={<Dashboard expenses={expenses} jobs={jobs} onNewScan={() => navigate('/scan')} onViewHistory={() => navigate('/history')} onViewJobs={() => navigate('/jobs')} onExport={handleExport} onSettings={() => navigate('/settings')} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} onRefresh={pullFromCloud} isCloudConnected={!!googleSheetUrl && googleSheetUrl.includes('script.google.com/macros/s/')} pendingCount={pendingCount} user={currentUser!} />} />
         <Route path="/scan" element={<ReceiptScanner onDataExtracted={(d, u) => setActiveReceipt({data: d, url: u})} jobs={jobs} />} />
         <Route path="/settings" element={currentUser?.role === UserRole.ADMIN ? <Settings sheetUrl={googleSheetUrl} onUpdateUrl={(u) => { setGoogleSheetUrl(u); localStorage.setItem('cb_sheet_url', u); setTimeout(() => pullFromCloud(), 500); }} unsyncedCount={pendingCount} onSyncAll={syncAllUnsynced} onTestConnection={async () => syncToGoogleSheet(googleSheetUrl, { type: 'test' })} /> : <Navigate to="/" replace />} />
         <Route path="/profile" element={<Profile user={currentUser!} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} />} />
@@ -297,7 +323,7 @@ const AppContent: React.FC = () => {
              </div>
           </div>
         } />
-        <Route path="/jobs" element={<JobManager jobs={jobs} onAddJob={saveJob} onUpdateJob={updateJob} onDeleteJob={deleteJob} onSyncAll={syncAllUnsynced} isCloudConnected={!!googleSheetUrl} userRole={currentUser?.role || UserRole.USER} />} />
+        <Route path="/jobs" element={<JobManager jobs={jobs} expenses={expenses} onAddJob={saveJob} onUpdateJob={updateJob} onDeleteJob={deleteJob} onSyncAll={syncAllUnsynced} isCloudConnected={!!googleSheetUrl} userRole={currentUser?.role || UserRole.USER} />} />
       </Routes>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 px-6 py-3 flex justify-between items-center z-40">
@@ -310,7 +336,7 @@ const AppContent: React.FC = () => {
 
       {activeReceipt && <ExpenseForm initialData={activeReceipt.data} imageUrl={activeReceipt.url} jobs={jobs} onSave={(rec) => saveExpense(rec, true)} onCancel={() => setActiveReceipt(null)} hasSyncUrl={!!googleSheetUrl} />}
       {editingExpense && <ExpenseForm initialData={editingExpense} imageUrl={editingExpense.imageUrl || ''} jobs={jobs} existingRecord={editingExpense} onSave={(rec) => saveExpense(rec, true)} onCancel={() => setEditingExpense(null)} hasSyncUrl={!!googleSheetUrl} />}
-      {expenseToDelete && <div className="fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center p-4"><div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-xl"><AlertCircle size={48} className="text-red-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-6">Delete Expense?</h3><div className="flex gap-3"><button onClick={() => setExpenseToDelete(null)} className="flex-1 py-4 rounded-2xl bg-slate-100 font-bold">Cancel</button><button onClick={() => deleteExpense(expenseToDelete)} className="flex-1 py-4 rounded-2xl bg-red-500 text-white font-bold">Delete</button></div></div></div>}
+      {expenseToDelete && <div className="fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center p-4"><div className="bg-white w-full max-sm rounded-[2.5rem] p-8 text-center shadow-xl"><AlertCircle size={48} className="text-red-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-6">Delete Expense?</h3><div className="flex gap-3"><button onClick={() => setExpenseToDelete(null)} className="flex-1 py-4 rounded-2xl bg-slate-100 font-bold">Cancel</button><button onClick={() => deleteExpense(expenseToDelete)} className="flex-1 py-4 rounded-2xl bg-red-500 text-white font-bold">Delete</button></div></div></div>}
     </div>
   );
 };

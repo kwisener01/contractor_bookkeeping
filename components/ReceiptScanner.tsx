@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Upload, Loader2, Image as ImageIcon, ChevronLeft, Info, Sparkles, ScanLine, Smartphone } from 'lucide-react';
+import { Camera, Upload, Loader2, ChevronLeft, Sparkles, Smartphone, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { processReceipt } from '../services/geminiService';
 import { ExtractedReceiptData, Job } from '../types';
@@ -87,62 +87,25 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted,
   return (
     <div className="flex flex-col h-full bg-slate-50 min-h-screen">
       <div className="bg-white px-6 py-5 flex items-center justify-between z-10 sticky top-0 border-b border-slate-100">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-full text-slate-600 active:scale-90 transition-transform"
-        >
+        <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-full text-slate-600 active:scale-90 transition-transform">
           <ChevronLeft size={20} />
         </button>
         <h1 className="text-lg font-black text-slate-800 tracking-tight">Receipt Scanner</h1>
         <div className="w-10"></div>
       </div>
 
-      <div className="flex-1 flex flex-col p-6 space-y-8 animate-in fade-in duration-500">
-        <div className="relative w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center">
-           <div className="absolute inset-0 bg-blue-600/5 rounded-[3rem] border-2 border-dashed border-blue-200"></div>
-           
-           <div className="relative group">
-              <div className="w-32 h-44 bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col p-3 overflow-hidden transform group-hover:rotate-2 transition-transform duration-500">
-                 <div className="w-full h-2 bg-slate-100 rounded-full mb-2"></div>
-                 <div className="w-2/3 h-2 bg-slate-100 rounded-full mb-4"></div>
-                 <div className="space-y-1.5 flex-1">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="flex justify-between">
-                         <div className="w-1/2 h-1.5 bg-slate-50 rounded-full"></div>
-                         <div className="w-4 h-1.5 bg-slate-100 rounded-full"></div>
-                      </div>
-                    ))}
-                 </div>
-                 <div className="w-full h-4 bg-blue-50 rounded-md mt-2"></div>
-              </div>
-              <div className="absolute left-0 right-0 top-0 h-1 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-[scan_2.5s_infinite_ease-in-out]"></div>
-              <div className="absolute -bottom-4 -right-4 w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 border-4 border-slate-50">
-                 <Camera size={24} />
-              </div>
-           </div>
-        </div>
-        
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Smart Mapping</h2>
+      <div className="flex-1 flex flex-col p-6 space-y-8 animate-in fade-in duration-500 justify-center">
+        <div className="text-center space-y-2 mb-4">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Smart Extraction</h2>
           <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-[240px] mx-auto">
-            AI automatically extracts details and maps them to your active projects.
+            Snap a photo to instantly extract project costs and merchant details.
           </p>
         </div>
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          className="hidden"
-        />
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
         <div className="grid grid-cols-1 gap-4">
-          <button
-            onClick={triggerCamera}
-            disabled={isProcessing}
-            className="relative overflow-hidden group flex items-center gap-4 bg-slate-900 text-white font-black py-5 px-6 rounded-[2rem] shadow-xl active:scale-95 transition-all disabled:opacity-50"
-          >
+          <button onClick={triggerCamera} disabled={isProcessing} className="relative overflow-hidden group flex items-center gap-4 bg-slate-900 text-white font-black py-6 px-6 rounded-[2rem] shadow-xl active:scale-95 transition-all disabled:opacity-50">
             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center shrink-0">
                <Camera size={24} className="group-hover:scale-110 transition-transform" />
             </div>
@@ -152,11 +115,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted,
             </div>
           </button>
 
-          <button
-            onClick={triggerUpload}
-            disabled={isProcessing}
-            className="group flex items-center gap-4 bg-white border border-slate-200 text-slate-700 font-black py-5 px-6 rounded-[2rem] shadow-sm hover:border-blue-400 active:scale-95 transition-all disabled:opacity-50"
-          >
+          <button onClick={triggerUpload} disabled={isProcessing} className="group flex items-center gap-4 bg-white border border-slate-200 text-slate-700 font-black py-6 px-6 rounded-[2rem] shadow-sm hover:border-blue-400 active:scale-95 transition-all disabled:opacity-50">
             <div className="w-12 h-12 bg-slate-50 group-hover:bg-blue-50 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
                <Upload size={24} className="text-slate-400 group-hover:text-blue-500" />
             </div>
@@ -174,7 +133,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted,
           <div>
             <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Smart Tip</p>
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Mapping is most accurate when the project address or name is mentioned on the invoice.
+              Line-item splits are automatically detected for receipts containing materials for multiple project sites.
             </p>
           </div>
         </div>
@@ -201,26 +160,12 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted,
             <p className="text-sm font-bold text-blue-600 text-center min-h-[1.25rem] transition-all">
               {statusMessage}
             </p>
-            <div className="mt-8 flex gap-1.5">
-               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.3s]"></div>
-               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.15s]"></div>
-               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce"></div>
-            </div>
           </div>
         </div>
       )}
 
       <style>{`
-        @keyframes scan {
-          0%, 100% { transform: translateY(0); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateY(176px); opacity: 0; }
-        }
-        @keyframes progress {
-          0% { width: 0%; }
-          100% { width: 100%; }
-        }
+        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
       `}</style>
     </div>
   );
