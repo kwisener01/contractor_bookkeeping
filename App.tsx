@@ -10,7 +10,7 @@ import { Settings } from './components/Settings';
 import { Login } from './components/Login';
 import { Profile } from './components/Profile';
 import { ExpenseRecord, ExtractedReceiptData, Job, UserRole, UserAccount } from './types';
-import { INITIAL_JOBS } from './constants';
+import { INITIAL_JOBS, DEFAULT_SHEET_URL } from './constants';
 import { syncToGoogleSheet, fetchFromCloud } from './services/googleSheetsService';
 
 const AppContent: React.FC = () => {
@@ -34,6 +34,7 @@ const AppContent: React.FC = () => {
   const syncLock = useRef(false);
   const pullLock = useRef(false);
 
+  // Core Data Loading
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('cb_user');
@@ -58,7 +59,8 @@ const AppContent: React.FC = () => {
       }
 
       const savedUrl = localStorage.getItem('cb_sheet_url');
-      if (savedUrl) setGoogleSheetUrl(savedUrl);
+      const initialUrl = savedUrl || DEFAULT_SHEET_URL;
+      setGoogleSheetUrl(initialUrl);
     } catch (e) {
       console.error("Storage load error", e);
     }
@@ -68,14 +70,15 @@ const AppContent: React.FC = () => {
   useEffect(() => { expensesRef.current = expenses; }, [expenses]);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
 
-  const pullFromCloud = useCallback(async () => {
-    if (!googleSheetUrl || !googleSheetUrl.includes('script.google.com/macros/s/') || pullLock.current) return;
+  const pullFromCloud = useCallback(async (targetUrl?: string) => {
+    const url = (targetUrl || googleSheetUrl).trim();
+    if (!url || !url.includes('script.google.com/macros/s/') || pullLock.current) return;
     
     pullLock.current = true;
     setIsPulling(true);
     
     try {
-      const data = await fetchFromCloud(googleSheetUrl);
+      const data = await fetchFromCloud(url);
       if (!data) return;
 
       setJobs(prev => {
@@ -102,6 +105,13 @@ const AppContent: React.FC = () => {
       pullLock.current = false;
     }
   }, [googleSheetUrl]);
+
+  // Trigger initial pull once URL is set and auth is done
+  useEffect(() => {
+    if (!isAuthLoading && currentUser && googleSheetUrl) {
+      pullFromCloud();
+    }
+  }, [isAuthLoading, currentUser, googleSheetUrl, pullFromCloud]);
 
   const syncAllUnsynced = useCallback(async (targetUrl?: string) => {
     const url = (targetUrl || googleSheetUrl).trim();
@@ -278,9 +288,9 @@ const AppContent: React.FC = () => {
 
       <Routes>
         <Route path="/login" element={<Login onLogin={(u) => { setCurrentUser(u); localStorage.setItem('cb_user', JSON.stringify(u)); navigate('/'); }} />} />
-        <Route path="/" element={<Dashboard expenses={expenses} jobs={jobs} onNewScan={() => navigate('/scan')} onViewHistory={() => navigate('/history')} onViewJobs={() => navigate('/jobs')} onExport={handleExport} onSettings={() => navigate('/settings')} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} onRefresh={pullFromCloud} isCloudConnected={!!googleSheetUrl && googleSheetUrl.includes('script.google.com/macros/s/')} pendingCount={pendingCount} user={currentUser!} />} />
+        <Route path="/" element={<Dashboard expenses={expenses} jobs={jobs} onNewScan={() => navigate('/scan')} onViewHistory={() => navigate('/history')} onViewJobs={() => navigate('/jobs')} onExport={handleExport} onSettings={() => navigate('/settings')} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} onRefresh={() => pullFromCloud()} isCloudConnected={!!googleSheetUrl && googleSheetUrl.includes('script.google.com/macros/s/')} pendingCount={pendingCount} user={currentUser!} />} />
         <Route path="/scan" element={<ReceiptScanner onDataExtracted={(d, u) => setActiveReceipt({data: d, url: u})} jobs={jobs} />} />
-        <Route path="/settings" element={currentUser?.role === UserRole.ADMIN ? <Settings sheetUrl={googleSheetUrl} onUpdateUrl={(u) => { setGoogleSheetUrl(u); localStorage.setItem('cb_sheet_url', u); setTimeout(() => pullFromCloud(), 500); }} unsyncedCount={pendingCount} onSyncAll={syncAllUnsynced} onTestConnection={async () => syncToGoogleSheet(googleSheetUrl, { type: 'test' })} /> : <Navigate to="/" replace />} />
+        <Route path="/settings" element={currentUser?.role === UserRole.ADMIN ? <Settings sheetUrl={googleSheetUrl} onUpdateUrl={(u) => { setGoogleSheetUrl(u); localStorage.setItem('cb_sheet_url', u); setTimeout(() => pullFromCloud(u), 500); }} unsyncedCount={pendingCount} onSyncAll={syncAllUnsynced} onTestConnection={async () => syncToGoogleSheet(googleSheetUrl, { type: 'test' })} /> : <Navigate to="/" replace />} />
         <Route path="/profile" element={<Profile user={currentUser!} onLogout={() => { setCurrentUser(null); localStorage.removeItem('cb_user'); navigate('/login'); }} />} />
         <Route path="/history" element={
           <div className="p-4 space-y-4">

@@ -1,6 +1,12 @@
 
 import { Job, ExpenseCategory } from './types';
 
+/** 
+ * DEPLOYMENT CONFIGURATION
+ * Paste your Google Apps Script Web App URL here to make it the default for everyone.
+ */
+export const DEFAULT_SHEET_URL = ''; 
+
 export const INITIAL_JOBS: Job[] = [
   {
     id: 'job-1',

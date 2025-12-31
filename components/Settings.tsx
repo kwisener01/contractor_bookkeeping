@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { ChevronLeft, Cloud, Copy, Check, ExternalLink, Info, Database, AlertCircle, Send, RefreshCw, HelpCircle, ShieldCheck, Terminal, MousePointer2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { ChevronLeft, Cloud, Copy, Check, ExternalLink, Info, Database, AlertCircle, Send, RefreshCw, HelpCircle, ShieldCheck, Terminal, MousePointer2, AlertTriangle, CheckCircle2, X, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { DEFAULT_SHEET_URL } from '../constants';
 
 interface SettingsProps {
   sheetUrl: string;
@@ -126,6 +127,11 @@ function doPost(e) {
     onUpdateUrl(url);
   };
 
+  const handleReset = () => {
+    setUrl(DEFAULT_SHEET_URL);
+    onUpdateUrl(DEFAULT_SHEET_URL);
+  };
+
   const handleTest = async () => {
     setTestStatus('testing');
     const success = await onTestConnection();
@@ -143,14 +149,22 @@ function doPost(e) {
 
       <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
         <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
-          <div className="flex items-center gap-4 mb-2">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${sheetUrl ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-              <Database size={24} />
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${sheetUrl ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                <Database size={24} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-800 tracking-tight">Cloud Link</h2>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Two-Way Sync Connection</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight">Cloud Link</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Two-Way Sync Connection</p>
-            </div>
+            {DEFAULT_SHEET_URL && url !== DEFAULT_SHEET_URL && (
+              <button onClick={handleReset} className="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors">
+                 <Undo2 size={16} />
+                 <span className="text-[8px] font-black uppercase">Reset</span>
+              </button>
+            )}
           </div>
           <div className="space-y-4">
             <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Apps Script Web App URL..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm transition-all" />
