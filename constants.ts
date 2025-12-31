@@ -5,7 +5,7 @@ import { Job, ExpenseCategory } from './types';
  * DEPLOYMENT CONFIGURATION
  * Paste your Google Apps Script Web App URL here to make it the default for everyone.
  */
-export const DEFAULT_SHEET_URL = ''; 
+export const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyT-LPLPtycDBrm6Rs5AIvrEigUODXBSrF8_WiQ6mXzz1twEsNRjlqenz15hwkspQbT/exec'; 
 
 export const INITIAL_JOBS: Job[] = [
   {
