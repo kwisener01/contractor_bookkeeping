@@ -1,15 +1,27 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ExtractedReceiptData, ExpenseCategory } from "../types";
+import { ExtractedReceiptData, ExpenseCategory, Job } from "../types";
 
-export const processReceipt = async (base64Image: string): Promise<ExtractedReceiptData> => {
-  // Use process.env.API_KEY directly as per guidelines
+export const processReceipt = async (base64Image: string, existingJobs: Job[]): Promise<ExtractedReceiptData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
+  // Create a context string of existing projects for the AI to map against
+  const projectContext = existingJobs.map(j => 
+    `ID: ${j.id}, Name: ${j.name}, Address: ${j.address}, Client: ${j.client}`
+  ).join('\n');
+
   const prompt = `Analyze this receipt image for bookkeeping. Extract the merchant name, date, total amount, tax, and a list of items. 
   Determine the most appropriate category from: ${Object.values(ExpenseCategory).join(', ')}.
-  If there are any interesting details, handwritten notes, or specific project references on the receipt, include them in a "notes" field.
-  Return the data in a clean JSON format.`;
+  
+  SMART MAPPING:
+  Look for references to project names, client names, or addresses. 
+  Compare any found details to this list of existing projects:
+  ${projectContext}
+  
+  If you find a strong match for the whole receipt or specific items, provide the corresponding "suggestedJobId" from the list above.
+  If specific items seem to belong to DIFFERENT projects based on descriptions, assign the jobId at the item level.
+  
+  Return the data in clean JSON format.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -37,14 +49,16 @@ export const processReceipt = async (base64Image: string): Promise<ExtractedRece
           taxAmount: { type: Type.NUMBER },
           currency: { type: Type.STRING },
           category: { type: Type.STRING },
-          notes: { type: Type.STRING, description: "Additional context or details from the receipt" },
+          suggestedJobId: { type: Type.STRING, description: "The ID of the project this receipt likely belongs to" },
+          notes: { type: Type.STRING },
           items: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
                 description: { type: Type.STRING },
-                amount: { type: Type.NUMBER }
+                amount: { type: Type.NUMBER },
+                jobId: { type: Type.STRING, description: "Suggested project ID for this specific item if it differs from the main receipt" }
               },
               required: ["description", "amount"]
             }
@@ -57,7 +71,6 @@ export const processReceipt = async (base64Image: string): Promise<ExtractedRece
 
   const result = JSON.parse(response.text || "{}");
   
-  // Clean up and validate category
   if (!Object.values(ExpenseCategory).includes(result.category as ExpenseCategory)) {
     result.category = ExpenseCategory.OTHER;
   }

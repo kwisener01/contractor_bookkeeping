@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { ExpenseRecord, Job } from '../types';
-import { Wallet, Briefcase, FileText, Plus, ArrowRight, Download, Settings, Cloud, CloudOff } from 'lucide-react';
+import { ExpenseRecord, Job, UserAccount, UserRole } from '../types';
+import { Wallet, FileText, Plus, ArrowRight, Download, Settings, Cloud, CloudOff, RefreshCw, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
 import { CATEGORY_COLORS } from '../constants';
 
 interface DashboardProps {
@@ -11,7 +12,11 @@ interface DashboardProps {
   onViewJobs: () => void;
   onExport: () => void;
   onSettings: () => void;
+  onLogout: () => void;
+  onRefresh: () => void;
   isCloudConnected: boolean;
+  pendingCount: number;
+  user: UserAccount;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -22,34 +27,69 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onViewJobs, 
   onExport, 
   onSettings,
-  isCloudConnected
+  onLogout,
+  onRefresh,
+  isCloudConnected,
+  pendingCount,
+  user
 }) => {
   const totalSpent = expenses.reduce((sum, exp) => sum + exp.totalAmount, 0);
   const recentExpenses = [...expenses].sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
+  const isAdmin = user.role === UserRole.ADMIN;
   
   return (
     <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-slate-400 text-sm font-medium">Welcome back,</p>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">ContractorBook</h1>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-400 overflow-hidden border border-slate-100">
+             <UserCircle size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{user.role}</p>
+              {isAdmin && <ShieldCheck size={10} className="text-blue-600" />}
+            </div>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">{user.name}</h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          {isCloudConnected && (
+            <button 
+              onClick={onRefresh}
+              title="Refresh from Cloud"
+              className="p-2.5 bg-white border border-blue-100 rounded-xl text-blue-600 shadow-sm active:scale-90 transition-all hover:bg-blue-50"
+            >
+              <RefreshCw size={20} />
+            </button>
+          )}
+          {isAdmin && (
+            <>
+              <button 
+                onClick={onSettings}
+                title="Cloud Settings"
+                className={`p-2.5 bg-white border ${isCloudConnected ? 'border-green-200 text-green-600' : 'border-slate-200 text-slate-600'} rounded-xl shadow-sm active:scale-90 transition-all hover:bg-slate-50 relative`}
+              >
+                <Settings size={20} />
+                {isCloudConnected && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                )}
+              </button>
+              <button 
+                onClick={onExport}
+                title="Export Data"
+                className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all hover:bg-slate-50"
+              >
+                <Download size={20} />
+              </button>
+            </>
+          )}
           <button 
-            onClick={onSettings}
-            className={`p-2.5 bg-white border ${isCloudConnected ? 'border-green-200 text-green-600' : 'border-slate-200 text-slate-600'} rounded-xl shadow-sm active:scale-90 transition-all hover:bg-slate-50 relative`}
+            onClick={onLogout}
+            title="Sign Out"
+            className="p-2.5 bg-white border border-red-100 rounded-xl text-red-500 shadow-sm active:scale-90 transition-all hover:bg-red-50"
           >
-            <Settings size={20} />
-            {isCloudConnected && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-            )}
-          </button>
-          <button 
-            onClick={onExport}
-            className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all hover:bg-slate-50"
-          >
-            <Download size={20} />
+            <LogOut size={20} />
           </button>
         </div>
       </div>
@@ -62,16 +102,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {isCloudConnected ? (
               <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 border border-white/20">
                 <Cloud size={12} className="text-white" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Synced</span>
+                <span className="text-[10px] font-black uppercase tracking-tighter">Sync Active</span>
               </div>
             ) : (
-              <button onClick={onSettings} className="bg-red-500/30 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 border border-white/10">
-                <CloudOff size={12} className="text-white/80" />
+              <div className="bg-black/10 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5">
+                <CloudOff size={12} className="text-white/60" />
                 <span className="text-[10px] font-black uppercase tracking-tighter">Offline</span>
-              </button>
+              </div>
             )}
           </div>
-          <p className="text-4xl font-black mt-1 tracking-tight">${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          <p className="text-4xl font-black mt-1 tracking-tight">
+            ${isAdmin ? totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '••••••'}
+          </p>
           
           <div className="mt-8 flex gap-4">
             <button 
@@ -85,10 +127,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
-        {/* Abstract pattern */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/20 rounded-full -ml-8 -mb-8 blur-2xl"></div>
       </div>
+
+      {/* Sync Status Alert */}
+      {isAdmin && isCloudConnected && pendingCount > 0 && (
+        <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
+                <RefreshCw size={20} className="animate-spin-slow" />
+             </div>
+             <div>
+                <p className="text-xs font-black text-orange-900 uppercase tracking-tight">{pendingCount} Items Pending</p>
+                <p className="text-[10px] text-orange-600 font-bold uppercase tracking-tight">Syncing in background...</p>
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-4">
@@ -102,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Recent Expenses */}
+      {/* Recent Activity */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-lg font-black text-slate-800 tracking-tight">Recent Activity</h2>
@@ -119,14 +175,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ) : (
             recentExpenses.map(exp => (
-              <div key={exp.id} className="bg-white p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-slate-100 animate-in fade-in slide-in-from-bottom-2">
+              <div key={exp.id} className="bg-white p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-slate-100">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${CATEGORY_COLORS[exp.category] || 'bg-slate-100'}`}>
                   {exp.merchantName.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold text-slate-800 truncate">{exp.merchantName}</p>
-                    {exp.isSynced && <Cloud size={10} className="text-green-500" />}
+                    {isAdmin && exp.isSynced && <Cloud size={10} className="text-green-500" />}
                   </div>
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-tight truncate">
                     {jobs.find(j => j.id === exp.jobId)?.name || 'Unknown Project'}
@@ -139,49 +195,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             ))
           )}
-        </div>
-      </div>
-
-      {/* Job Sites Section */}
-      <div className="space-y-4 pb-20">
-        <div className="flex items-center justify-between px-1">
-           <h2 className="text-lg font-black text-slate-800 tracking-tight">Project Sites</h2>
-           <button onClick={onViewJobs} className="text-blue-600 text-sm font-bold flex items-center gap-1">
-              Manage <ArrowRight size={14} />
-           </button>
-        </div>
-        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-          {jobs.map(job => (
-            <div key={job.id} className="min-w-[240px] bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-between">
-              <div>
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
-                  job.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {job.status}
-                </span>
-                <h3 className="font-black text-slate-800 mt-2 truncate text-lg tracking-tight">{job.name}</h3>
-                <p className="text-slate-400 text-xs mt-1 truncate font-medium">{job.client}</p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Expenses</p>
-                  <p className="font-black text-slate-800">
-                    ${expenses.filter(e => e.jobId === job.id).reduce((s, e) => s + e.totalAmount, 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                  <Briefcase size={14} />
-                </div>
-              </div>
-            </div>
-          ))}
-          <button 
-            onClick={onViewJobs}
-            className="min-w-[140px] bg-white border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center text-slate-400 gap-2 active:bg-slate-50 transition-all"
-          >
-            <Plus size={24} />
-            <span className="text-[10px] font-black uppercase">New Site</span>
-          </button>
         </div>
       </div>
     </div>

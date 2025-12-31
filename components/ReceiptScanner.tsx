@@ -1,15 +1,16 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, Upload, Loader2, Image as ImageIcon, ChevronLeft, Info, Sparkles } from 'lucide-react';
+import { Camera, Upload, Loader2, Image as ImageIcon, ChevronLeft, Info, Sparkles, ScanLine, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { processReceipt } from '../services/geminiService';
-import { ExtractedReceiptData } from '../types';
+import { ExtractedReceiptData, Job } from '../types';
 
 interface ReceiptScannerProps {
   onDataExtracted: (data: ExtractedReceiptData, imageUrl: string) => void;
+  jobs: Job[];
 }
 
-export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted }) => {
+export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted, jobs }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Analyzing receipt...");
@@ -19,8 +20,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
   const messages = [
     "Detecting merchant name...",
     "Extracting line items...",
+    "Mapping to projects...",
     "Calculating taxes and totals...",
-    "Categorizing expense...",
     "Almost ready for review..."
   ];
 
@@ -40,7 +41,6 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Optional: Validate file size (e.g., < 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError("Image is too large. Please take a smaller photo.");
       return;
@@ -54,7 +54,7 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
         try {
-          const data = await processReceipt(base64);
+          const data = await processReceipt(base64, jobs);
           onDataExtracted(data, base64);
         } catch (err) {
           setError("AI extraction failed. Please ensure the photo is clear and try again.");
@@ -72,7 +72,6 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
 
   const triggerCamera = () => {
     if (fileInputRef.current) {
-      // Force the browser to trigger the native camera app
       fileInputRef.current.setAttribute('capture', 'environment');
       fileInputRef.current.click();
     }
@@ -80,36 +79,54 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
 
   const triggerUpload = () => {
     if (fileInputRef.current) {
-      // Standard file picker for gallery selection
       fileInputRef.current.removeAttribute('capture');
       fileInputRef.current.click();
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between z-10">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-600">
-          <ChevronLeft />
+    <div className="flex flex-col h-full bg-slate-50 min-h-screen">
+      <div className="bg-white px-6 py-5 flex items-center justify-between z-10 sticky top-0 border-b border-slate-100">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-full text-slate-600 active:scale-90 transition-transform"
+        >
+          <ChevronLeft size={20} />
         </button>
-        <h1 className="font-bold text-slate-800">Scanner</h1>
-        <div className="w-8"></div>
+        <h1 className="text-lg font-black text-slate-800 tracking-tight">Receipt Scanner</h1>
+        <div className="w-10"></div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
-        <div className="relative">
-          <div className="w-32 h-32 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-200 transform -rotate-3">
-            <Camera size={56} />
-          </div>
-          <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-blue-400 rounded-2xl flex items-center justify-center text-white border-4 border-slate-50 shadow-lg">
-            <Sparkles size={20} />
-          </div>
+      <div className="flex-1 flex flex-col p-6 space-y-8 animate-in fade-in duration-500">
+        <div className="relative w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center">
+           <div className="absolute inset-0 bg-blue-600/5 rounded-[3rem] border-2 border-dashed border-blue-200"></div>
+           
+           <div className="relative group">
+              <div className="w-32 h-44 bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col p-3 overflow-hidden transform group-hover:rotate-2 transition-transform duration-500">
+                 <div className="w-full h-2 bg-slate-100 rounded-full mb-2"></div>
+                 <div className="w-2/3 h-2 bg-slate-100 rounded-full mb-4"></div>
+                 <div className="space-y-1.5 flex-1">
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className="flex justify-between">
+                         <div className="w-1/2 h-1.5 bg-slate-50 rounded-full"></div>
+                         <div className="w-4 h-1.5 bg-slate-100 rounded-full"></div>
+                      </div>
+                    ))}
+                 </div>
+                 <div className="w-full h-4 bg-blue-50 rounded-md mt-2"></div>
+              </div>
+              <div className="absolute left-0 right-0 top-0 h-1 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-[scan_2.5s_infinite_ease-in-out]"></div>
+              <div className="absolute -bottom-4 -right-4 w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 border-4 border-slate-50">
+                 <Camera size={24} />
+              </div>
+           </div>
         </div>
         
-        <div className="text-center max-w-xs">
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Receipt Scan</h2>
-          <p className="text-slate-500 mt-2 font-medium">Snap a clear photo of your receipt. Our AI handles the rest.</p>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Smart Mapping</h2>
+          <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-[240px] mx-auto">
+            AI automatically extracts details and maps them to your active projects.
+          </p>
         </div>
 
         <input
@@ -120,31 +137,46 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
           className="hidden"
         />
 
-        <div className="grid grid-cols-1 w-full gap-4 pt-4">
+        <div className="grid grid-cols-1 gap-4">
           <button
             onClick={triggerCamera}
             disabled={isProcessing}
-            className="group flex items-center justify-center gap-4 bg-blue-600 hover:bg-blue-700 text-white font-black py-5 px-6 rounded-3xl shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:opacity-50"
+            className="relative overflow-hidden group flex items-center gap-4 bg-slate-900 text-white font-black py-5 px-6 rounded-[2rem] shadow-xl active:scale-95 transition-all disabled:opacity-50"
           >
-            <Camera className="group-active:scale-110 transition-transform" />
-            <span className="text-lg">Open Camera</span>
+            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center shrink-0">
+               <Camera size={24} className="group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="flex flex-col items-start text-left">
+               <span className="text-base tracking-tight leading-none mb-1">Use Camera</span>
+               <span className="text-[10px] opacity-50 uppercase font-black tracking-widest">Snap a new photo</span>
+            </div>
           </button>
 
           <button
             onClick={triggerUpload}
             disabled={isProcessing}
-            className="flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-blue-300 text-slate-700 font-bold py-4 px-6 rounded-3xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            className="group flex items-center gap-4 bg-white border border-slate-200 text-slate-700 font-black py-5 px-6 rounded-[2rem] shadow-sm hover:border-blue-400 active:scale-95 transition-all disabled:opacity-50"
           >
-            <Upload size={20} />
-            Photo Library
+            <div className="w-12 h-12 bg-slate-50 group-hover:bg-blue-50 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
+               <Upload size={24} className="text-slate-400 group-hover:text-blue-500" />
+            </div>
+            <div className="flex flex-col items-start text-left">
+               <span className="text-base tracking-tight leading-none mb-1">Photo Library</span>
+               <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Choose from gallery</span>
+            </div>
           </button>
         </div>
 
-        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex gap-3 max-w-sm">
-          <Info size={20} className="text-blue-500 shrink-0" />
-          <p className="text-xs text-blue-700 leading-relaxed font-medium">
-            <span className="font-bold">Pro Tip:</span> Flatten the receipt and ensure good lighting for the best extraction accuracy.
-          </p>
+        <div className="bg-blue-600/5 p-5 rounded-[2rem] border border-blue-100/50 flex gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+             <Sparkles size={18} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Smart Tip</p>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Mapping is most accurate when the project address or name is mentioned on the invoice.
+            </p>
+          </div>
         </div>
 
         {error && (
@@ -154,33 +186,40 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onDataExtracted 
         )}
       </div>
 
-      {/* Full Screen Processing Overlay */}
       {isProcessing && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-white p-8 animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center max-w-xs w-full text-slate-900">
-            <div className="relative mb-6">
-               <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-25"></div>
-               <div className="bg-blue-50 p-6 rounded-full relative">
-                  <Loader2 size={48} className="animate-spin text-blue-600" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xl z-[100] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-xs w-full text-slate-900 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-50">
+               <div className="h-full bg-blue-600 animate-[progress_10s_linear_infinite]"></div>
+            </div>
+            <div className="mb-8 relative">
+               <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
+                  <Loader2 size={36} className="animate-spin text-blue-600" />
                </div>
             </div>
-            <p className="text-2xl font-black text-center tracking-tight">Processing</p>
-            <div className="h-6 mt-2 overflow-hidden w-full">
-              <p className="text-sm font-bold text-blue-600 text-center animate-in slide-in-from-bottom-2">
-                {statusMessage}
-              </p>
-            </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-6 overflow-hidden">
-               <div className="bg-blue-600 h-full w-1/3 animate-[loading_2s_infinite]"></div>
+            <h3 className="text-xl font-black tracking-tight mb-2">Analyzing Data</h3>
+            <p className="text-sm font-bold text-blue-600 text-center min-h-[1.25rem] transition-all">
+              {statusMessage}
+            </p>
+            <div className="mt-8 flex gap-1.5">
+               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.3s]"></div>
+               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce [animation-delay:-0.15s]"></div>
+               <div className="w-2 h-2 rounded-full bg-blue-600 animate-bounce"></div>
             </div>
           </div>
         </div>
       )}
 
       <style>{`
-        @keyframes loading {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(300%); }
+        @keyframes scan {
+          0%, 100% { transform: translateY(0); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(176px); opacity: 0; }
+        }
+        @keyframes progress {
+          0% { width: 0%; }
+          100% { width: 100%; }
         }
       `}</style>
     </div>

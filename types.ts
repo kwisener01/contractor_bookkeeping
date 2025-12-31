@@ -1,3 +1,4 @@
+
 export enum ExpenseCategory {
   MATERIAL = 'Material',
   TOOLS = 'Tools',
@@ -8,9 +9,22 @@ export enum ExpenseCategory {
   OTHER = 'Other'
 }
 
+export enum UserRole {
+  ADMIN = 'Admin',
+  USER = 'User'
+}
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  role: UserRole;
+  email: string;
+}
+
 export interface ReceiptItem {
   description: string;
   amount: number;
+  jobId?: string; // Optional: individual item can belong to a specific job
 }
 
 export interface ExtractedReceiptData {
@@ -22,11 +36,12 @@ export interface ExtractedReceiptData {
   category: ExpenseCategory;
   items: ReceiptItem[];
   notes?: string;
+  suggestedJobId?: string; // AI suggested job ID based on content mapping
 }
 
 export interface ExpenseRecord extends ExtractedReceiptData {
   id: string;
-  jobId: string;
+  jobId: string; // The "Primary" or "Default" job for the receipt
   timestamp: number;
   imageUrl?: string;
   isSynced?: boolean;
