@@ -1,5 +1,5 @@
 
-import { ExpenseRecord, Job, ExpenseCategory } from '../types';
+import { ExpenseRecord, Job } from '../types';
 
 /**
  * Sends data to Google Sheets via Apps Script.
@@ -128,7 +128,9 @@ export const fetchFromCloud = async (webhookUrl: string): Promise<{ jobs: Job[],
       totalAmount: parseFloat(e.amount || e.totalAmount) || 0,
       taxAmount: parseFloat(e.taxAmount) || 0,
       currency: '$',
-      category: (e.category as ExpenseCategory) || ExpenseCategory.OTHER,
+      // Fix: Removed ExpenseCategory usage which was causing a compilation error.
+      // Now using string as per types.ts definition.
+      category: (e.category as string) || 'Other',
       items: [{ 
         description: e.description || 'General Item', 
         amount: parseFloat(e.amount || e.totalAmount) || 0, 

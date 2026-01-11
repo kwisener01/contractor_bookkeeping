@@ -1,11 +1,34 @@
 
-import { Job, ExpenseCategory } from './types';
+import { Job } from './types';
 
-/** 
- * DEPLOYMENT CONFIGURATION
- * Paste your Google Apps Script Web App URL here to make it the default for everyone.
- */
 export const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyT-LPLPtycDBrm6Rs5AIvrEigUODXBSrF8_WiQ6mXzz1twEsNRjlqenz15hwkspQbT/exec'; 
+
+export const DEFAULT_CATEGORIES = [
+  'Materials',
+  'Sub-Contractors',
+  'Tools',
+  'Office',
+  'Dump',
+  'Porta John',
+  'Fuel',
+  'Travel',
+  'Permits',
+  'Other'
+];
+
+// Added CATEGORY_COLORS to fix the "Module has no exported member 'CATEGORY_COLORS'" error in Dashboard.tsx
+export const CATEGORY_COLORS: Record<string, string> = {
+  'Materials': 'bg-blue-100 text-blue-700',
+  'Sub-Contractors': 'bg-purple-100 text-purple-700',
+  'Tools': 'bg-orange-100 text-orange-700',
+  'Office': 'bg-slate-100 text-slate-700',
+  'Dump': 'bg-red-100 text-red-700',
+  'Porta John': 'bg-cyan-100 text-cyan-700',
+  'Fuel': 'bg-amber-100 text-amber-700',
+  'Travel': 'bg-emerald-100 text-emerald-700',
+  'Permits': 'bg-indigo-100 text-indigo-700',
+  'Other': 'bg-slate-100 text-slate-700'
+};
 
 export const INITIAL_JOBS: Job[] = [
   {
@@ -31,13 +54,3 @@ export const INITIAL_JOBS: Job[] = [
     budget: 15000
   }
 ];
-
-export const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  [ExpenseCategory.MATERIAL]: 'bg-blue-100 text-blue-700',
-  [ExpenseCategory.TOOLS]: 'bg-orange-100 text-orange-700',
-  [ExpenseCategory.LABOR]: 'bg-purple-100 text-purple-700',
-  [ExpenseCategory.TRAVEL]: 'bg-green-100 text-green-700',
-  [ExpenseCategory.FUEL]: 'bg-red-100 text-red-700',
-  [ExpenseCategory.PERMITS]: 'bg-yellow-100 text-yellow-700',
-  [ExpenseCategory.OTHER]: 'bg-gray-100 text-gray-700',
-};

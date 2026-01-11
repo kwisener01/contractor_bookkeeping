@@ -1,14 +1,19 @@
 
-import React, { useState } from 'react';
-import { ChevronLeft, Cloud, Copy, Check, ExternalLink, Info, Database, AlertCircle, Send, RefreshCw, HelpCircle, ShieldCheck, Terminal, MousePointer2, AlertTriangle, CheckCircle2, X, Undo2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronLeft, Cloud, Database, X, Undo2, Plus, Tag, Building2, Image as ImageIcon, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { DEFAULT_SHEET_URL } from '../constants';
+import { DEFAULT_SHEET_URL, DEFAULT_CATEGORIES } from '../constants';
+import { ContractorProfile } from '../types';
 
 interface SettingsProps {
   sheetUrl: string;
   onUpdateUrl: (url: string) => void;
   unsyncedCount: number;
   onSyncAll: () => Promise<void>;
+  categories: string[];
+  onUpdateCategories: (cats: string[]) => void;
+  contractorProfile: ContractorProfile;
+  onUpdateProfile: (profile: ContractorProfile) => void;
   onTestConnection: () => Promise<boolean>;
 }
 
@@ -17,173 +22,168 @@ export const Settings: React.FC<SettingsProps> = ({
   onUpdateUrl, 
   unsyncedCount, 
   onSyncAll,
+  categories,
+  onUpdateCategories,
+  contractorProfile,
+  onUpdateProfile,
   onTestConnection
 }) => {
   const [url, setUrl] = useState(sheetUrl);
-  const [copied, setCopied] = useState(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [profile, setProfile] = useState<ContractorProfile>(contractorProfile);
+  const [newCat, setNewCat] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const scriptCode = `function doGet() {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var result = { jobs: [], expenses: [] };
-    
-    var jobSheet = ss.getSheetByName("Jobs");
-    if (jobSheet && jobSheet.getLastRow() > 0) {
-      var data = jobSheet.getDataRange().getValues();
-      for (var i = 1; i < data.length; i++) {
-        if (!data[i][0]) continue;
-        result.jobs.push({
-          id: data[i][0], name: data[i][1], client: data[i][2], 
-          address: data[i][3], contactName: data[i][4], 
-          phone: data[i][5], email: data[i][6], status: data[i][7],
-          budget: parseFloat(data[i][8]) || 0
-        });
-      }
+  const handleAddCategory = () => {
+    if (newCat && !categories.includes(newCat)) {
+      onUpdateCategories([...categories, newCat]);
+      setNewCat('');
     }
-
-    var expSheet = ss.getSheetByName("Expenses");
-    if (expSheet && expSheet.getLastRow() > 0) {
-      var data = expSheet.getDataRange().getValues();
-      for (var i = 1; i < data.length; i++) {
-        if (!data[i][0]) continue;
-        result.expenses.push({
-          id: data[i][0], date: data[i][1], merchantName: data[i][2],
-          jobId: data[i][3], jobName: data[i][4], category: data[i][5],
-          amount: data[i][6], description: data[i][7], notes: data[i][8]
-        });
-      }
-    }
-
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (e) {
-    return ContentService.createTextOutput(JSON.stringify({ error: e.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  try {
-    if (!e || !e.postData || !e.postData.contents) throw new Error("No data");
-    var data = JSON.parse(e.postData.contents);
-
-    if (data.type === 'test') {
-      ss.getSheetByName("Expenses") || ss.insertSheet("Expenses");
-      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
-    }
-
-    if (data.type === 'job') {
-      var sheet = ss.getSheetByName("Jobs") || ss.insertSheet("Jobs");
-      if (sheet.getLastRow() == 0) {
-        sheet.appendRow(["ID", "Name", "Client", "Address", "Contact", "Phone", "Email", "Status", "Budget", "Updated"]);
-        sheet.setFrozenRows(1);
-      }
-      var rows = sheet.getDataRange().getValues();
-      var foundIdx = -1;
-      for (var i = 1; i < rows.length; i++) if (rows[i][0].toString() == data.id.toString()) { foundIdx = i+1; break; }
-      var val = [data.id, data.name, data.client, data.address, data.contactName, data.phone, data.email, data.status, data.budget, new Date()];
-      if (foundIdx > 0) sheet.getRange(foundIdx, 1, 1, 10).setValues([val]); else sheet.appendRow(val);
-    }
-
-    if (data.type === 'expense_batch') {
-      var sheet = ss.getSheetByName("Expenses") || ss.insertSheet("Expenses");
-      if (sheet.getLastRow() == 0) {
-        sheet.appendRow(["Entry ID", "Date", "Merchant", "Job ID", "Job Name", "Category", "Amount", "Description", "Notes"]);
-        sheet.setFrozenRows(1);
-      }
-      
-      var rows = sheet.getDataRange().getValues();
-      var receiptIdStr = data.receiptId.toString();
-
-      for (var i = rows.length - 1; i >= 1; i--) {
-        var entryId = rows[i][0].toString();
-        if (entryId.split('_')[0] === receiptIdStr) {
-          sheet.deleteRow(i + 1);
-        }
-      }
-      
-      data.entries.forEach(function(entry) {
-        sheet.appendRow([entry.id, entry.date, entry.merchantName, entry.jobId, entry.jobName, entry.category, entry.amount, entry.description, entry.notes]);
-      });
-    }
-    
-    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
-  } catch (err) {
-    return ContentService.createTextOutput("Error: " + err.message).setMimeType(ContentService.MimeType.TEXT);
-  }
-}`;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(scriptCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSave = () => {
+  const handleRemoveCategory = (cat: string) => {
+    onUpdateCategories(categories.filter(c => c !== cat));
+  };
+
+  const handleResetCategories = () => {
+    onUpdateCategories(DEFAULT_CATEGORIES);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveAll = () => {
     onUpdateUrl(url);
-  };
-
-  const handleReset = () => {
-    setUrl(DEFAULT_SHEET_URL);
-    onUpdateUrl(DEFAULT_SHEET_URL);
-  };
-
-  const handleTest = async () => {
-    setTestStatus('testing');
-    const success = await onTestConnection();
-    setTestStatus(success ? 'success' : 'error');
-    setTimeout(() => setTestStatus('idle'), 5000);
+    onUpdateProfile(profile);
+    alert("Settings saved successfully!");
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 pb-24">
+    <div className="flex flex-col h-full bg-slate-50 pb-32">
       <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between z-10">
         <button onClick={() => navigate('/')} className="p-2 -ml-2 text-slate-600"><ChevronLeft /></button>
-        <h1 className="font-bold text-slate-800 tracking-tight text-lg">Cloud Settings</h1>
-        <div className="w-8"></div>
+        <h1 className="font-black text-slate-800 tracking-tight text-lg">Admin Settings</h1>
+        <button onClick={handleSaveAll} className="bg-blue-600 text-white px-6 py-2 rounded-2xl font-black text-xs uppercase shadow-md">Save</button>
       </div>
 
       <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
-        <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${sheetUrl ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                <Database size={24} />
+        {/* Branding Section */}
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+           <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Building2 size={24} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800 tracking-tight">Cloud Link</h2>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Two-Way Sync Connection</p>
+                <h2 className="text-lg font-black text-slate-800 tracking-tight">Contractor Branding</h2>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Statement Appearance</p>
               </div>
-            </div>
-            {DEFAULT_SHEET_URL && url !== DEFAULT_SHEET_URL && (
-              <button onClick={handleReset} className="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors">
+           </div>
+
+           <div className="space-y-6">
+              <div className="flex flex-col items-center">
+                 <div className="w-24 h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group">
+                    {profile.logoUrl ? (
+                      <img src={profile.logoUrl} className="w-full h-full object-cover" alt="Logo Preview" />
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-300">
+                         <ImageIcon size={32} />
+                         <span className="text-[8px] font-black uppercase mt-1">No Logo</span>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                       <Upload size={20} />
+                    </button>
+                 </div>
+                 <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3">Click to upload logo thumbnail</p>
+              </div>
+
+              <div className="space-y-4">
+                 <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Company Name</label>
+                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold" value={profile.companyName} onChange={e => setProfile({...profile, companyName: e.target.value})} placeholder="Contracting Co." />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Office Phone</label>
+                       <input type="tel" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold text-sm" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} placeholder="555-0199" />
+                    </div>
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Biz Email</label>
+                       <input type="email" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none font-bold text-sm" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="biz@mail.com" />
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Bookkeeping Categories */}
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+           <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                  <Tag size={24} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 tracking-tight">Expense Categories</h2>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Bookkeeping buckets</p>
+                </div>
+              </div>
+              <button onClick={handleResetCategories} className="text-slate-400 hover:text-blue-600 flex flex-col items-center gap-1">
                  <Undo2 size={16} />
                  <span className="text-[8px] font-black uppercase">Reset</span>
               </button>
-            )}
-          </div>
-          <div className="space-y-4">
-            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Apps Script Web App URL..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm transition-all" />
-            <button onClick={handleSave} className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Save & Start Sync</button>
-            <button onClick={handleTest} disabled={testStatus === 'testing'} className="w-full bg-white border border-slate-200 py-3 rounded-2xl text-xs font-bold text-slate-600 flex items-center justify-center gap-2">
-              {testStatus === 'testing' ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}Test Connection
-            </button>
-          </div>
+           </div>
+           
+           <div className="flex gap-2 mb-6">
+              <input 
+                type="text" 
+                value={newCat} 
+                onChange={(e) => setNewCat(e.target.value)}
+                placeholder="New bucket..." 
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+              />
+              <button onClick={handleAddCategory} className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg active:scale-95 transition-all">
+                <Plus size={20} />
+              </button>
+           </div>
+
+           <div className="flex flex-wrap gap-2">
+              {categories.map(cat => (
+                <div key={cat} className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-xl group">
+                   <span className="text-xs font-black text-slate-700">{cat}</span>
+                   <button onClick={() => handleRemoveCategory(cat)} className="text-slate-300 hover:text-red-500 transition-colors">
+                      <X size={14} />
+                   </button>
+                </div>
+              ))}
+           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-800 mb-4">Update Apps Script</h3>
-          <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-            Updated template for <b>Budget Tracking</b> and <b>Client Email</b> support. Replace your existing code and redeploy as 'Anyone'.
-          </p>
-          <div className="relative">
-             <button onClick={handleCopy} className="absolute top-2 right-2 p-2 bg-white/80 rounded-lg shadow-sm border text-[10px] font-bold">{copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}</button>
-             <pre className="bg-slate-900 text-slate-400 p-4 rounded-2xl overflow-x-auto text-[10px] font-mono max-h-[250px] no-scrollbar">{scriptCode}</pre>
+        {/* Cloud Link */}
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-4">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Database size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800 tracking-tight">Cloud Database</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Google Sheets Link</p>
+            </div>
           </div>
+          <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Apps Script URL..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm" />
         </div>
       </div>
     </div>

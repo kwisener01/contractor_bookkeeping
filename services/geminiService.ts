@@ -1,17 +1,16 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ExtractedReceiptData, ExpenseCategory, Job } from "../types";
+import { ExtractedReceiptData, Job } from "../types";
 
-export const processReceipt = async (base64Image: string, existingJobs: Job[]): Promise<ExtractedReceiptData> => {
+export const processReceipt = async (base64Image: string, existingJobs: Job[], availableCategories: string[]): Promise<ExtractedReceiptData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Create a context string of existing projects for the AI to map against
   const projectContext = existingJobs.map(j => 
     `ID: ${j.id}, Name: ${j.name}, Address: ${j.address}, Client: ${j.client}`
   ).join('\n');
 
-  const prompt = `Analyze this receipt image for bookkeeping. Extract the merchant name, date, total amount, tax, and a list of items. 
-  Determine the most appropriate category from: ${Object.values(ExpenseCategory).join(', ')}.
+  const prompt = `Analyze this receipt image for bookkeeping. Extract the merchant name, date, total amount (GROSS), tax amount, and a list of items. 
+  Determine the most appropriate category from this specific list provided by the contractor: ${availableCategories.join(', ')}.
   
   SMART MAPPING:
   Look for references to project names, client names, or addresses. 
@@ -49,7 +48,7 @@ export const processReceipt = async (base64Image: string, existingJobs: Job[]): 
           taxAmount: { type: Type.NUMBER },
           currency: { type: Type.STRING },
           category: { type: Type.STRING },
-          suggestedJobId: { type: Type.STRING, description: "The ID of the project this receipt likely belongs to" },
+          suggestedJobId: { type: Type.STRING },
           notes: { type: Type.STRING },
           items: {
             type: Type.ARRAY,
@@ -58,7 +57,7 @@ export const processReceipt = async (base64Image: string, existingJobs: Job[]): 
               properties: {
                 description: { type: Type.STRING },
                 amount: { type: Type.NUMBER },
-                jobId: { type: Type.STRING, description: "Suggested project ID for this specific item if it differs from the main receipt" }
+                jobId: { type: Type.STRING }
               },
               required: ["description", "amount"]
             }
@@ -71,8 +70,9 @@ export const processReceipt = async (base64Image: string, existingJobs: Job[]): 
 
   const result = JSON.parse(response.text || "{}");
   
-  if (!Object.values(ExpenseCategory).includes(result.category as ExpenseCategory)) {
-    result.category = ExpenseCategory.OTHER;
+  // Ensure the AI picked a category from the allowed list
+  if (!availableCategories.includes(result.category)) {
+    result.category = availableCategories[0] || 'Other';
   }
 
   return result as ExtractedReceiptData;

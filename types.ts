@@ -1,14 +1,4 @@
 
-export enum ExpenseCategory {
-  MATERIAL = 'Material',
-  TOOLS = 'Tools',
-  LABOR = 'Labor',
-  TRAVEL = 'Travel',
-  FUEL = 'Fuel',
-  PERMITS = 'Permits',
-  OTHER = 'Other'
-}
-
 export enum UserRole {
   ADMIN = 'Admin',
   USER = 'User'
@@ -21,10 +11,18 @@ export interface UserAccount {
   email: string;
 }
 
+export interface ContractorProfile {
+  companyName: string;
+  phone: string;
+  email: string;
+  logoUrl?: string;
+  logoEmoji?: string;
+}
+
 export interface ReceiptItem {
   description: string;
   amount: number;
-  jobId?: string; // Optional: individual item can belong to a specific job
+  jobId?: string; 
 }
 
 export interface ExtractedReceiptData {
@@ -33,15 +31,15 @@ export interface ExtractedReceiptData {
   totalAmount: number;
   taxAmount: number;
   currency: string;
-  category: ExpenseCategory;
+  category: string; 
   items: ReceiptItem[];
   notes?: string;
-  suggestedJobId?: string; // AI suggested job ID based on content mapping
+  suggestedJobId?: string;
 }
 
 export interface ExpenseRecord extends ExtractedReceiptData {
   id: string;
-  jobId: string; // The "Primary" or "Default" job for the receipt
+  jobId: string;
   timestamp: number;
   imageUrl?: string;
   isSynced?: boolean;
@@ -56,6 +54,6 @@ export interface Job {
   phone: string;
   email: string;
   status: 'active' | 'completed' | 'pending';
-  budget: number; // New: tracking project budget
+  budget: number;
   isSynced?: boolean;
 }

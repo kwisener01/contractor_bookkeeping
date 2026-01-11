@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { ExpenseRecord, Job, UserAccount, UserRole } from '../types';
-import { Wallet, FileText, Plus, ArrowRight, Download, Settings, Cloud, CloudOff, RefreshCw, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
+import { ExpenseRecord, Job, UserAccount, UserRole, ContractorProfile } from '../types';
+import { FileText, Plus, ArrowRight, Settings, Cloud, CloudOff, RefreshCw, LogOut, UserCircle, ShieldCheck, Share2 } from 'lucide-react';
 import { CATEGORY_COLORS } from '../constants';
 
 interface DashboardProps {
@@ -17,6 +17,7 @@ interface DashboardProps {
   isCloudConnected: boolean;
   pendingCount: number;
   user: UserAccount;
+  contractorProfile: ContractorProfile;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -31,7 +32,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onRefresh,
   isCloudConnected,
   pendingCount,
-  user
+  user,
+  contractorProfile
 }) => {
   const totalSpent = expenses.reduce((sum, exp) => sum + exp.totalAmount, 0);
   const recentExpenses = [...expenses].sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
@@ -42,15 +44,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-400 overflow-hidden border border-slate-100">
-             <UserCircle size={24} />
+          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-slate-100 overflow-hidden">
+             {contractorProfile.logoUrl ? (
+               <img src={contractorProfile.logoUrl} className="w-full h-full object-cover" alt="Logo" />
+             ) : (
+               contractorProfile.logoEmoji || '🏗️'
+             )}
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{user.role}</p>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">{contractorProfile.companyName}</h1>
+            <div className="flex items-center gap-1.5 opacity-60">
+              <p className="text-[10px] font-black uppercase tracking-widest">{user.role}</p>
               {isAdmin && <ShieldCheck size={10} className="text-blue-600" />}
             </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">{user.name}</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -64,25 +70,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           )}
           {isAdmin && (
-            <>
-              <button 
-                onClick={onSettings}
-                title="Cloud Settings"
-                className={`p-2.5 bg-white border ${isCloudConnected ? 'border-green-200 text-green-600' : 'border-slate-200 text-slate-600'} rounded-xl shadow-sm active:scale-90 transition-all hover:bg-slate-50 relative`}
-              >
-                <Settings size={20} />
-                {isCloudConnected && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                )}
-              </button>
-              <button 
-                onClick={onExport}
-                title="Export Data"
-                className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 shadow-sm active:scale-90 transition-all hover:bg-slate-50"
-              >
-                <Download size={20} />
-              </button>
-            </>
+            <button 
+              onClick={onSettings}
+              title="Settings"
+              className={`p-2.5 bg-white border ${isCloudConnected ? 'border-green-200 text-green-600' : 'border-slate-200 text-slate-600'} rounded-xl shadow-sm active:scale-90 transition-all hover:bg-slate-50 relative`}
+            >
+              <Settings size={20} />
+              {isCloudConnected && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              )}
+            </button>
           )}
           <button 
             onClick={onLogout}
@@ -181,7 +178,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="font-bold text-slate-800 truncate">{exp.merchantName}</p>
+                    <p className="font-bold text-slate-800 truncate text-sm">{exp.merchantName}</p>
                     {isAdmin && exp.isSynced && <Cloud size={10} className="text-green-500" />}
                   </div>
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-tight truncate">
@@ -189,7 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-black text-slate-800">${exp.totalAmount.toFixed(2)}</p>
+                  <p className="font-black text-slate-800 text-sm">${exp.totalAmount.toFixed(2)}</p>
                   <p className="text-slate-400 text-[10px] font-bold">{new Date(exp.timestamp).toLocaleDateString()}</p>
                 </div>
               </div>
